@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - HF_API_TOKEN=${HF_API_TOKEN}
+      - PORT=3000
+      - FRONTEND_URL=http://localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - chat-network
+
+networks:
+  chat-network:
+    driver: bridge
