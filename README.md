@@ -201,7 +201,7 @@ The application uses Hugging Face `sentence-transformers/all-MiniLM-L6-v2` (384-
 
 ### Scaling Considerations:
 - Embeddings are generated asynchronously to avoid blocking message delivery
-- Fallback to zero vectors if OpenAI API is unavailable
+- Fallback to zero vectors if HuggingFace API is unavailable
 - Vector indexing for efficient similarity search
 - Batch processing for large-scale deployments
 
@@ -345,5 +345,5 @@ For technical support or questions about the assignment, hmu @ www.tushar.kr.bh@
 
 ---
 
-**Built with ❤️ for the Faff Engineering Assignment**
+**Built with ❤️ by Tushar (Xzist) **
 
