@@ -34,6 +34,7 @@ const io = socketIo(server, {
 
 const connectedUsers = new Map();
 
+// --- Middleware Setup ---
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 app.use(helmet());
@@ -41,6 +42,10 @@ app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files like CSS, JS, or images from the 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- API Rate Limiting ---
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -48,11 +53,11 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-app.use(express.static(path.join(__dirname, 'public')));
-
+// --- API Routes ---
 app.use('/api', authRoutes);
 app.use('/api', messageRoutes);
 
+// --- Health and Metrics Routes ---
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -66,6 +71,7 @@ app.get('/metrics', (req, res) => {
   res.json(getMetrics());
 });
 
+// --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
   logger.info(`User connected with socket ID: ${socket.id}`);
 
@@ -75,17 +81,17 @@ io.on('connection', (socket) => {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.userId);
-      
+
       if (user) {
         socket.userId = user.id;
         socket.userName = user.name;
         connectedUsers.set(user.id, socket.id);
-        
+
         logConnectionChange('connect', user.id);
         socket.emit('authenticated', { userId: user.id, userName: user.name });
         socket.broadcast.emit('user_online', { userId: user.id, userName: user.name });
       } else {
-         socket.emit('auth_error', { message: 'User not found.' });
+        socket.emit('auth_error', { message: 'User not found.' });
       }
     } catch (error) {
       logError(error, { socketId: socket.id, event: 'authenticate' });
@@ -117,22 +123,28 @@ io.on('connection', (socket) => {
   });
 });
 
+// --- Catch-all for API routes that don't exist ---
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
 
+// --- Catch-all for Frontend serving ---
+// This MUST be after all API routes and before the final error handler.
+// It serves the index.html for any non-API request.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// --- Final Error Handler ---
 app.use((err, req, res, next) => {
   logError(err, { url: req.originalUrl, method: req.method });
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal Server Error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
+// --- Server Startup Logic ---
 const startServer = async () => {
   try {
     logger.info('Initializing database...');
@@ -164,4 +176,3 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();
-
